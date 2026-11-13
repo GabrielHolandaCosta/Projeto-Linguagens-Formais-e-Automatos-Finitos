@@ -1,0 +1,207 @@
+$ python codigo/scanner.py exemplos/exemplo.min --minimizar
+P0 = {qF,qI,qN,qOp,qSep,qW} | {q0,qDot,qErr}
+P1 = {qF,qN} | {qI} | {qOp,qSep} | {qW} | {q0} | {qDot} | {qErr}
+P2 = {qF} | {qN} | {qI} | {qOp,qSep} | {qW} | {q0} | {qDot} | {qErr}
+P3 = {qF} | {qN} | {qI} | {qOp,qSep} | {qW} | {q0} | {qDot} | {qErr}
+9 estados -> 8 estados
+1:1   KW_LET    let
+1:5   ID        total
+1:11  OP        =
+1:13  FLOAT     12.50
+1:18  SEP       ;
+2:1   KW_LET    let
+2:5   ID        bonus
+2:11  OP        =
+2:13  INT       3
+2:14  SEP       ;
+3:1   KW_IF     if
+3:4   SEP       (
+3:5   ID        total
+3:10  SEP       )
+3:12  KW_PRINT  print
+3:17  SEP       (
+3:18  ID        total
+3:24  OP        +
+3:26  ID        bonus
+3:31  SEP       )
+3:32  SEP       ;
+4:1   KW_ELSE   else
+4:6   KW_PRINT  print
+4:11  SEP       (
+4:12  INT       0
+4:13  SEP       )
+4:14  SEP       ;
+Codigo de saida: 0
+
+$ python codigo/scanner.py exemplos/exemplo.min --json
+{
+  "tokens": [
+    {
+      "kind": "KW_LET",
+      "lexeme": "let",
+      "line": 1,
+      "column": 1
+    },
+    {
+      "kind": "ID",
+      "lexeme": "total",
+      "line": 1,
+      "column": 5
+    },
+    {
+      "kind": "OP",
+      "lexeme": "=",
+      "line": 1,
+      "column": 11
+    },
+    {
+      "kind": "FLOAT",
+      "lexeme": "12.50",
+      "line": 1,
+      "column": 13
+    },
+    {
+      "kind": "SEP",
+      "lexeme": ";",
+      "line": 1,
+      "column": 18
+    },
+    {
+      "kind": "KW_LET",
+      "lexeme": "let",
+      "line": 2,
+      "column": 1
+    },
+    {
+      "kind": "ID",
+      "lexeme": "bonus",
+      "line": 2,
+      "column": 5
+    },
+    {
+      "kind": "OP",
+      "lexeme": "=",
+      "line": 2,
+      "column": 11
+    },
+    {
+      "kind": "INT",
+      "lexeme": "3",
+      "line": 2,
+      "column": 13
+    },
+    {
+      "kind": "SEP",
+      "lexeme": ";",
+      "line": 2,
+      "column": 14
+    },
+    {
+      "kind": "KW_IF",
+      "lexeme": "if",
+      "line": 3,
+      "column": 1
+    },
+    {
+      "kind": "SEP",
+      "lexeme": "(",
+      "line": 3,
+      "column": 4
+    },
+    {
+      "kind": "ID",
+      "lexeme": "total",
+      "line": 3,
+      "column": 5
+    },
+    {
+      "kind": "SEP",
+      "lexeme": ")",
+      "line": 3,
+      "column": 10
+    },
+    {
+      "kind": "KW_PRINT",
+      "lexeme": "print",
+      "line": 3,
+      "column": 12
+    },
+    {
+      "kind": "SEP",
+      "lexeme": "(",
+      "line": 3,
+      "column": 17
+    },
+    {
+      "kind": "ID",
+      "lexeme": "total",
+      "line": 3,
+      "column": 18
+    },
+    {
+      "kind": "OP",
+      "lexeme": "+",
+      "line": 3,
+      "column": 24
+    },
+    {
+      "kind": "ID",
+      "lexeme": "bonus",
+      "line": 3,
+      "column": 26
+    },
+    {
+      "kind": "SEP",
+      "lexeme": ")",
+      "line": 3,
+      "column": 31
+    },
+    {
+      "kind": "SEP",
+      "lexeme": ";",
+      "line": 3,
+      "column": 32
+    },
+    {
+      "kind": "KW_ELSE",
+      "lexeme": "else",
+      "line": 4,
+      "column": 1
+    },
+    {
+      "kind": "KW_PRINT",
+      "lexeme": "print",
+      "line": 4,
+      "column": 6
+    },
+    {
+      "kind": "SEP",
+      "lexeme": "(",
+      "line": 4,
+      "column": 11
+    },
+    {
+      "kind": "INT",
+      "lexeme": "0",
+      "line": 4,
+      "column": 12
+    },
+    {
+      "kind": "SEP",
+      "lexeme": ")",
+      "line": 4,
+      "column": 13
+    },
+    {
+      "kind": "SEP",
+      "lexeme": ";",
+      "line": 4,
+      "column": 14
+    }
+  ]
+}
+Codigo de saida: 0
+
+$ python codigo/scanner.py exemplos/invalido.min
+Erro: Caractere inesperado '.' em 1:15
+Codigo de saida: 1

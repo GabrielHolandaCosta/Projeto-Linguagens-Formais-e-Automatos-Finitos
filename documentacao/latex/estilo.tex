@@ -1,0 +1,21 @@
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage[brazil]{babel}
+\usepackage{lmodern}
+\usepackage{amsmath,amssymb,booktabs,array}
+\usepackage{tikz}
+\usetikzlibrary{automata,positioning,arrows.meta}
+\usepackage{listings}
+\definecolor{azul}{RGB}{20,49,78}
+\definecolor{verde}{RGB}{0,121,111}
+\definecolor{cinza}{RGB}{244,247,250}
+\lstset{language=Python,basicstyle=\ttfamily\scriptsize,
+ keywordstyle=\color{azul}\bfseries,commentstyle=\color{verde},
+ stringstyle=\color{verde},breaklines=true,showstringspaces=false,
+ frame=single,rulecolor=\color{azul!20},backgroundcolor=\color{cinza},
+ columns=fullflexible,keepspaces=true,tabsize=4}
+\newcommand{\q}[1]{q_{\mathrm{#1}}}
+\newcommand{\MiniL}{\textsc{MiniL}}
+\newcommand{\grupo}{Gabriel Holanda, Gabriel Torres, Victor Milito,\\Paulo Júnior, Vinicius Kaua e Pablo Café}
+\tikzset{every state/.style={draw=azul,thick,minimum size=8mm,font=\small},
+ every edge/.style={draw=azul,>=Stealth},every edge quotes/.style={font=\scriptsize}}

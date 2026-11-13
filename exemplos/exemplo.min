@@ -1,0 +1,4 @@
+let total = 12.50;
+let bonus = 3;
+if (total) print(total + bonus);
+else print(0);

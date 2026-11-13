@@ -1,0 +1,406 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{xcolor}
+\input{../../documentacao/latex/estilo}
+\usepackage{microtype}
+\usepackage{needspace}
+\usepackage[colorlinks=true,linkcolor=azul,urlcolor=verde]{hyperref}
+\usepackage{fancyhdr}
+\pagestyle{fancy}\fancyhf{}\fancyhead[L]{\small\MiniL{} | Reconhecedor léxico}
+\fancyhead[R]{\small LFAF}\fancyfoot[C]{\thepage}
+\setlength{\headheight}{15pt}
+\setlength{\parindent}{0pt}\setlength{\parskip}{6pt}
+\setlength{\emergencystretch}{2em}
+\setcounter{tocdepth}{1}
+\lstset{basicstyle=\ttfamily\footnotesize}
+\title{\color{azul}\textbf{O Compilador Mínimo: relatório técnico}\\[4mm]
+\large Modelando um reconhecedor léxico para a mini-linguagem \MiniL}
+\author{\normalsize\grupo}
+\date{Linguagens Formais e Autômatos Finitos\\Revisão 1.1.0 --- 13 de novembro de 2026}
+\begin{document}
+\maketitle
+\begin{abstract}
+Este trabalho especifica e implementa um analisador léxico para uma mini-linguagem
+com palavras-chave, identificadores, inteiros, decimais, operadores e separadores.
+Definimos um AFD completo com nove estados, apresentamos sua tabela e seus
+diagramas vetoriais, e aplicamos o refinamento de partições de Moore, obtendo
+oito estados no reconhecedor de lexemas. A implementação em Python utiliza a
+mesma função de transição e a regra do maior prefixo aceito. O conjunto de
+testes verifica tokens, erros, posições, alcançabilidade e equivalência exata
+entre os autômatos, por exploração do produto. O projeto cobre a etapa léxica;
+análise sintática, semântica e geração de código ficam fora do escopo.
+\end{abstract}
+\textbf{Palavras-chave:} AFD; análise léxica; expressões regulares; minimização; LaTeX.
+\tableofcontents
+\newpage
+\section{Problema, objetivo e decisões de projeto}
+O scanner recebe um texto e o transforma em uma sequência de tokens. Por exemplo,
+\texttt{let total = 12.50;} produz uma palavra-chave, um identificador, um operador,
+um literal decimal e um separador. Cada token armazena categoria, lexema, linha e
+coluna. Lexema é o texto concreto; categoria é sua classificação.
+
+A aplicação escolhida é \emph{Analisador Léxico para uma Mini-Linguagem}, prevista
+na proposta da disciplina. Embora o título da proposta mencione compilador,
+este projeto implementa apenas seu reconhecimento léxico. Uma sequência de
+tokens válida não garante que exista um programa sintaticamente correto.
+
+\subsection{Contrato da mini-linguagem}
+\begin{itemize}
+\item A linguagem diferencia maiúsculas e minúsculas: \texttt{if} é reservada;
+\texttt{If} é um identificador.
+\item Identificadores usam letras ASCII ou sublinhado no início; depois podem
+conter também dígitos. Letras acentuadas não pertencem a essa classe.
+\item Números são não sinalizados. Um decimal exige dígitos dos dois lados do
+ponto. Zeros à esquerda são permitidos. Expoentes e vírgula decimal não existem.
+\item Os sinais de \texttt{-3} geram dois tokens: operador e inteiro.
+\item Operadores e separadores têm um caractere. \texttt{==} gera dois operadores
+\texttt{=}; não existe operador de igualdade composto neste contrato.
+\item Espaços, tabulações, retorno de carro e quebras de linha são reconhecidos
+e descartados. A quebra de linha \texttt{\textbackslash n} avança a linha; os demais
+caracteres avançam a coluna em uma unidade, inclusive tabulação.
+\item A regra é o maior prefixo aceito. Assim, \texttt{12abc} gera inteiro
+\texttt{12} e identificador \texttt{abc}. Não se impõe fronteira adicional.
+\item Strings e caracteres não previstos causam erro léxico. Comentários não são
+interpretados: barras consecutivas continuam sendo operadores, e as palavras
+seguintes continuam sendo tokens comuns.
+\end{itemize}
+
+\section{Especificação por expressões regulares}
+Usamos classes disjuntas de caracteres. O alfabeto finito $\Sigma$ corresponde
+aos valores de caracteres representáveis por Python, de U+0000 a U+10FFFF.
+Somente as classes explicitamente permitidas podem integrar um lexema aceito.
+\begin{center}
+\begin{tabular}{cl}
+\toprule Classe & Definição\\\midrule
+$L$ & \texttt{A--Z}, \texttt{a--z} e \texttt{\_}\\
+$D$ & \texttt{0--9}\\
+$P$ & apenas o ponto \texttt{.} (coluna ``$.$'' nas tabelas)\\
+$O$ & \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/}, \texttt{=}\\
+$S$ & \texttt{(}, \texttt{)}, \texttt{;}\\
+$W$ & espaço, \texttt{\textbackslash t}, \texttt{\textbackslash r}, \texttt{\textbackslash n}\\
+$X$ & $\Sigma\setminus(L\cup D\cup P\cup O\cup S\cup W)$\\\bottomrule
+\end{tabular}
+\end{center}
+Em regex, $*$ significa zero ou mais ocorrências e $+$ significa uma ou mais.
+Na expressão $O$, o símbolo literal \texttt{+} é um membro da classe, não o
+operador de repetição.
+\begin{align*}
+\mathrm{ID}&=L(L\mid D)^* &\mathrm{INT}&=D^+\\
+\mathrm{FLOAT}&=D^+\,\texttt{.}\,D^+ &\mathrm{OP}&=O\\
+\mathrm{SEP}&=S &\mathrm{WS}&=W^+.
+\end{align*}
+A linguagem de \emph{um lexema} é
+\[
+\mathcal{L}_{lex}=\mathrm{ID}\cup\mathrm{INT}\cup\mathrm{FLOAT}
+\cup\mathrm{OP}\cup\mathrm{SEP}\cup\mathrm{WS}.
+\]
+Palavras-chave pertencem à forma regular de ID. Após consumir o maior
+identificador, consultamos a tabela
+$\{\texttt{let},\texttt{if},\texttt{else},\texttt{print}\}$.
+Por isso, \texttt{ifx} é um único ID, e não \texttt{if} seguido de \texttt{x}.
+
+\section{Definição formal do AFD}
+De acordo com a definição clássica de AFD~\cite{sipser}, seja
+\[
+M=(Q,\Sigma,\delta,\q{0},F),
+\]
+com
+\begin{align*}
+Q&=\{\q{0},\q{I},\q{N},\q{Dot},\q{F},\q{Op},\q{Sep},\q{W},\q{Err}\},\\
+F&=\{\q{I},\q{N},\q{F},\q{Op},\q{Sep},\q{W}\},\\
+\delta&:Q\times\Sigma\longrightarrow Q.
+\end{align*}
+$\q{0}$ é inicial; $\q{Err}$ é o estado de erro absorvente. Os nomes dos estados
+são rótulos: em particular, $\q{F}$ é o estado de decimal e $F$ é o conjunto
+de estados finais. Não são o mesmo objeto.
+
+\Needspace{18\baselineskip}
+\subsection{Função de transição completa}
+Cada coluna representa todos os caracteres da classe correspondente. Todas
+as células estão definidas, portanto o AFD é completo e determinístico.
+\begin{center}\small
+\begin{tabular}{c|ccccccc}
+\toprule Estado & $L$ & $D$ & $.$ & $O$ & $S$ & $W$ & $X$\\\midrule
+$\q{0}$ & $\q{I}$ & $\q{N}$ & $\q{Err}$ & $\q{Op}$ & $\q{Sep}$ & $\q{W}$ & $\q{Err}$\\
+$\q{I}$ & $\q{I}$ & $\q{I}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$\\
+$\q{N}$ & $\q{Err}$ & $\q{N}$ & $\q{Dot}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$\\
+$\q{Dot}$ & $\q{Err}$ & $\q{F}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$\\
+$\q{F}$ & $\q{Err}$ & $\q{F}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$\\
+$\q{Op}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$\\
+$\q{Sep}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$\\
+$\q{W}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{W}$ & $\q{Err}$\\
+$\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$ & $\q{Err}$\\\bottomrule
+\end{tabular}\end{center}
+A extensão a palavras satisfaz
+$\delta^*(q,\varepsilon)=q$ e
+$\delta^*(q,wa)=\delta(\delta^*(q,w),a)$.
+Uma palavra $w$ é aceita se e somente se $\delta^*(\q{0},w)\in F$.
+Como $\q{0}\notin F$, o lexema vazio não é aceito.
+
+\subsection{Diagrama original em TikZ}
+\begin{center}\input{../../documentacao/latex/diagrama_original}\end{center}
+\textbf{Convenção do desenho:} toda transição não desenhada vai para
+$\q{Err}$. Seu laço representa todos os caracteres de $\Sigma$. Essa convenção
+evita cruzamentos; a tabela acima explicita todas as arestas omitidas.
+Círculo duplo indica aceitação e a seta sem origem indica o estado inicial.
+
+\subsection{Por que o AFD reconhece a especificação?}
+O invariante de cada ramo descreve os prefixos que chegam ao seu estado:
+\begin{center}
+\begin{tabular}{cl}
+\toprule Estado & Forma dos prefixos que o alcançam\\\midrule
+$\q{0}$ & $\varepsilon$\\
+$\q{I}$ & $L(L\mid D)^*$\\
+$\q{N}$ & $D^+$\\
+$\q{Dot}$ & $D^+\texttt{.}$\\
+$\q{F}$ & $D^+\texttt{.}D^+$\\
+$\q{Op}$, $\q{Sep}$ & um caractere de $O$, um de $S$, respectivamente\\
+$\q{W}$ & $W^+$\\
+$\q{Err}$ & prefixo que já saiu de todas as formas permitidas\\\bottomrule
+\end{tabular}\end{center}
+Essas propriedades seguem por indução no comprimento do prefixo, usando a
+tabela. Os estados finais correspondem exatamente às seis expressões
+regulares. Portanto $\mathcal{L}(M)=\mathcal{L}_{lex}$.
+
+\section{Minimização: nove estados para oito}
+Minimizamos o AFD como \textbf{reconhecedor booleano de um lexema}. Usamos
+refinamento de partições de Moore: dois estados permanecem juntos quando têm
+a mesma condição de aceitação e, em cada classe de entrada, chegam ao mesmo
+bloco da partição anterior.
+
+\subsection{Passo 1: remover estados inacessíveis}
+Todos são alcançáveis a partir de $\q{0}$. Testemunhas:
+\[
+\begin{array}{c|ccccccccc}
+q&\q{0}&\q{I}&\q{N}&\q{Dot}&\q{F}&\q{Op}&\q{Sep}&\q{W}&\q{Err}\\
+w&\varepsilon&\texttt{a}&\texttt{0}&\texttt{0.}&\texttt{0.0}&\texttt{+}&\texttt{;}&\text{espaço}&\texttt{@}
+\end{array}
+\]
+Nenhum estado é removido nessa etapa.
+
+\subsection{Passo 2: partição inicial e assinaturas}
+Sejam $A=F$ e $B=Q\setminus F$. Então
+\[
+\mathcal{P}_0=\{A,B\}=
+\big\{\{\q{I},\q{N},\q{F},\q{Op},\q{Sep},\q{W}\},
+\{\q{0},\q{Dot},\q{Err}\}\big\}.
+\]
+Na ordem $(L,D,.,O,S,W,X)$, a assinatura de $q$ é o vetor de blocos
+que contêm seus destinos:
+\begin{center}\small
+\begin{tabular}{ccl}
+\toprule Bloco original & Estado & Assinatura em $\mathcal{P}_0$\\\midrule
+$A$ & $\q{I}$ & $(A,A,B,B,B,B,B)$\\
+$A$ & $\q{N}$ & $(B,A,B,B,B,B,B)$\\
+$A$ & $\q{F}$ & $(B,A,B,B,B,B,B)$\\
+$A$ & $\q{Op},\q{Sep}$ & $(B,B,B,B,B,B,B)$\\
+$A$ & $\q{W}$ & $(B,B,B,B,B,A,B)$\\
+$B$ & $\q{0}$ & $(A,A,B,A,A,A,B)$\\
+$B$ & $\q{Dot}$ & $(B,A,B,B,B,B,B)$\\
+$B$ & $\q{Err}$ & $(B,B,B,B,B,B,B)$\\\bottomrule
+\end{tabular}\end{center}
+Só se comparam assinaturas dentro do mesmo bloco. Assim, $\q{Dot}$ e $\q{N}$
+não se unem, pois um é não final e o outro é final. A primeira rodada produz
+\[
+\mathcal{P}_1=\big\{\{\q{I}\},\{\q{N},\q{F}\},\{\q{Op},\q{Sep}\},
+\{\q{W}\},\{\q{0}\},\{\q{Dot}\},\{\q{Err}\}\big\}.
+\]
+\textbf{Atenção:} $\q{N}$ e $\q{F}$ ainda não se separam em $\mathcal{P}_1$:
+ambos iam para o bloco não final ao ler ponto na partição inicial.
+
+\subsection{Passo 3: segunda rodada e estabilização}
+Em $\mathcal{P}_1$, $\q{Dot}$ e $\q{Err}$ já estão em blocos diferentes.
+Como $\delta(\q{N},\texttt{.})=\q{Dot}$ e
+$\delta(\q{F},\texttt{.})=\q{Err}$, o bloco $\{\q{N},\q{F}\}$ se divide:
+\[
+\mathcal{P}_2=\big\{\{\q{0}\},\{\q{I}\},\{\q{N}\},\{\q{Dot}\},
+\{\q{F}\},\{\q{Op},\q{Sep}\},\{\q{W}\},\{\q{Err}\}\big\}.
+\]
+Todos os blocos agora são unitários, exceto $\{\q{Op},\q{Sep}\}$, cujos
+destinos são sempre $\q{Err}$. Logo $\mathcal{P}_3=\mathcal{P}_2$.
+O algoritmo termina com \textbf{oito estados}.
+
+\subsection{Autômato quociente e preservação de categorias}
+Seja $[q]$ o bloco que contém $q$ e $\q{T}=\{\q{Op},\q{Sep}\}$. Definimos
+\[
+M_{min}=(Q/{\sim},\Sigma,\delta_{min},[\q{0}],F_{min}),\quad
+\delta_{min}([q],a)=[\delta(q,a)],
+\]
+onde $F_{min}=\{[\q{I}],[\q{N}],[\q{F}],\q{T},[\q{W}]\}$.
+A transição está bem definida porque estados do mesmo bloco têm destinos
+equivalentes. A tabela do quociente é obtida substituindo cada estado da tabela
+original pelo seu bloco e unindo as linhas de $\q{Op}$ e $\q{Sep}$.
+\begin{center}\input{../../documentacao/latex/diagrama_minimo}\end{center}
+Também neste desenho, arestas omitidas levam a $[\q{Err}]$.
+
+A fusão preserva a aceitação de lexemas. \textbf{Ela não preserva, sozinha, o rótulo
+de saída OP/SEP.} Para classificar após a fusão, basta consultar o lexema:
+se pertence a $O$, é OP; se pertence a $S$, é SEP. A implementação principal
+mantém os nove estados para tornar a relação estado--categoria direta, e
+calcula o quociente separadamente. Não afirmamos que um scanner com rótulos de
+saída diferentes possa unir esses estados sem essa recuperação de categoria.
+
+\subsection{Justificativa de minimalidade}
+Entre estado final e não final, o sufixo $\varepsilon$ distingue o par. Entre os
+três não finais, \texttt{a} distingue $[\q{0}]$ dos outros dois, e \texttt{0}
+distingue $[\q{Dot}]$ de $[\q{Err}]$. Entre os cinco estados finais:
+\begin{center}
+\begin{tabular}{cl}
+\toprule Pares & Sufixo que é aceito a partir de apenas um estado\\\midrule
+$[\q{I}]$ contra qualquer outro final & \texttt{a}\\
+$[\q{N}]$ contra $[\q{F}]$ & \texttt{.0}\\
+$[\q{N}]$ ou $[\q{F}]$ contra $[\q{W}]$ ou $\q{T}$ & \texttt{0}\\
+$[\q{W}]$ contra $\q{T}$ & espaço\\\bottomrule
+\end{tabular}\end{center}
+Todos os oito blocos são alcançáveis e dois a dois distinguíveis. Portanto,
+nenhum outro par pode ser fundido preservando a linguagem: o AFD é mínimo.
+
+\section{Do reconhecedor ao scanner}
+O AFD recebe \emph{um lexema}; o scanner processa um arquivo completo.
+Se o texto é \texttt{a+b}, o AFD rejeita a palavra inteira como um único lexema,
+mas o scanner produz ID, OP e ID. Ele reinicia o AFD após cada token.
+Um arquivo vazio produz uma lista vazia; isso não significa aceitar
+$\varepsilon$ como um lexema.
+
+\subsection{Maior prefixo aceito e retrocesso}
+Em cada posição inicial, o scanner avança enquanto não chega ao estado de erro,
+guardando a última posição em estado final. Ao parar, retorna a essa posição,
+emite o token e reinicia. Se nenhuma posição final foi atingida, informa erro.
+Essa é a política de maior casamento, habitual em análise léxica~\cite{aho}.
+
+\begin{center}
+\begin{tabular}{cll}
+\toprule Entrada & Caminho relevante & Resultado\\\midrule
+\texttt{12.50} & $\q{0}\to\q{N}\to\q{N}\to\q{Dot}\to\q{F}\to\q{F}$ & FLOAT\\
+\texttt{ifx} & $\q{0}\to\q{I}\to\q{I}\to\q{I}$ & ID, após consulta\\
+\texttt{12.} & último final antes do ponto & INT \texttt{12}; erro no ponto\\
+\texttt{.5} & $\q{0}\to\q{Err}$ & erro na primeira posição\\\bottomrule
+\end{tabular}\end{center}
+Em \texttt{12.}, $\q{Dot}$ não é final: falta a parte fracionária. Após devolver
+\texttt{12}, o scanner recomeça no ponto e acusa o erro. A função interrompe a
+execução com exceção; não retorna a lista parcial de tokens.
+
+\clearpage
+\subsection{Trechos da implementação}
+A tabela de transição do programa corresponde diretamente à especificação:
+\lstinputlisting[firstline=23,lastline=33]{../../codigo/scanner.py}
+O núcleo a seguir registra a última aceitação e executa o retrocesso:
+\lstinputlisting[firstline=83,lastline=112]{../../codigo/scanner.py}
+O código completo acompanha a entrega em \texttt{scanner.py}, sem bibliotecas
+externas. A função \texttt{minimize()} implementa o refinamento mostrado no
+relatório; \texttt{testes/test\_scanner.py} contém as verificações reproduzíveis.
+
+\subsection{Revisão de software e rastreabilidade em 2026}
+A versão 1.1.0 foi revisada em 13/11/2026. O código usa Python 3.12 ou superior,
+anotações de tipos, aliases com a instrução \texttt{type}, registros imutáveis
+com slots e uma interface de linha de comando com JSON. A documentação oficial
+do Python 3.14 foi consultada na revisão~\cite{pythonatual}. A versão de Python
+efetivamente testada está registrada em \texttt{evidencias/validacao.txt};
+compatibilidade declarada não substitui teste em cada versão do interpretador.
+
+Os recursos novos respondem a necessidades concretas: integração por JSON,
+mensagens para arquivos inválidos, entrada padrão e preservação de quebras de
+linha. Os conceitos de AFD, maior prefixo e Moore são clássicos e continuam
+válidos. A data desta implementação não torna as técnicas novas; as datas
+originais das referências são preservadas.
+
+Na CLI, a tokenização completa ocorre antes da impressão: erros não produzem
+uma lista parcial. \texttt{--json} apresenta tokens na saída padrão; erros
+estruturados vão para a saída de erro. Os códigos de saída são 0 para sucesso,
+1 para erro de arquivo/codificação/léxico e 2 para uso incorreto dos argumentos.
+O arquivo padrão é resolvido relativamente ao código, não ao diretório corrente.
+
+\subsection{Custo computacional e limites}
+Neste AFD, há no máximo um caractere de prefixo consumido após o último estado
+final: o ponto em $\q{Dot}$. O caractere que provoca a parada também pode ser
+consultado novamente. Portanto o custo do scanner é $O(n)$, com quantidade
+constante de consultas por caractere. Esse argumento é específico deste AFD;
+não afirmamos esse limite para qualquer scanner com retrocesso.
+O armazenamento dos tokens e lexemas é $O(n)$. As tabelas têm tamanho fixo.
+
+O refinamento simples executado em Python possui, para $k$ classes e $m$
+estados, no máximo $m$ rodadas e $O(km^2)$ avaliações de destinos no total,
+desconsiderando custos de ordenação e estruturas auxiliares. Não se trata da
+implementação otimizada de Hopcroft.
+
+\section{Demonstração e verificação}
+Execute os comandos na raiz do repositório, com Python 3.12 ou mais recente:
+\begin{lstlisting}[language={}]
+python codigo/scanner.py exemplos/exemplo.min --minimizar
+python -m unittest discover -s testes -v
+python codigo/scanner.py exemplos/invalido.min
+\end{lstlisting}
+O primeiro arquivo contém:
+\lstinputlisting[language={}]{../../exemplos/exemplo.min}
+Este é um exemplo para \emph{tokenização}; não se define nem se valida uma
+gramática de comandos para esse texto.
+
+Para a primeira linha, o resultado é:
+\begin{center}
+\begin{tabular}{clc}
+\toprule Categoria & Lexema & Linha:coluna\\\midrule
+KW\_LET & \texttt{let} & 1:1\\
+ID & \texttt{total} & 1:5\\
+OP & \texttt{=} & 1:11\\
+FLOAT & \texttt{12.50} & 1:13\\
+SEP & \texttt{;} & 1:18\\\bottomrule
+\end{tabular}\end{center}
+\texttt{invalido.min} apresenta erro no ponto de \texttt{12.}, em 1:15. O
+encerramento com código 1 é esperado nesse teste negativo.
+
+\subsection{O que os 18 testes verificam}
+\begin{enumerate}
+\item Categorias, maior casamento e operadores/separadores.
+\item Todas as quatro palavras-chave.
+\item Aceitação e rejeição de lexemas isolados, incluindo vazio e acentos.
+\item Linha e coluna em múltiplas linhas.
+\item Erros em \texttt{12.}, \texttt{.5}, \texttt{12.3.4} e \texttt{@}, com retrocesso.
+\item Políticas explícitas para \texttt{12abc}, \texttt{-3}, \texttt{==}, espaços e arquivo vazio.
+\item Totalidade da tabela e alcançabilidade dos nove estados.
+\item Oito blocos, fusão correta e equivalência exata no produto alcançável.
+\item Classificação de exatamente um caractere e comparação independente
+com regex em 2.801 palavras representativas de comprimento até quatro.
+\item Linha de comando: arquivo padrão independente do diretório, JSON,
+entrada padrão, arquivo inexistente, UTF-8 inválido, erro sem saída parcial,
+preservação de CR/LF e identificação da versão.
+\end{enumerate}
+Na verificação do produto, visitamos pares $(q,[q])$, comparamos aceitação e
+seguimos as sete classes de transição. Como cada classe reúne caracteres com
+o mesmo comportamento, ausência de divergência em todos os pares alcançáveis
+prova equivalência para \emph{todas} as palavras, não apenas para exemplos de
+comprimento limitado. Isso verifica o reconhecedor booleano; as categorias e a
+política de tokenização são verificadas pelos testes específicos.
+
+\section{Atendimento à proposta e conclusão}
+\begin{center}\small
+\begin{tabular}{p{.36\linewidth}p{.54\linewidth}}
+\toprule Exigência & Evidência na entrega\\\midrule
+Tupla matemática e transições & $M$, conjuntos e tabela completa na Seção 3\\
+Diagrama limpo e legível & Original e mínimo, desenhados em TikZ\\
+Minimização demonstrada & Alcançabilidade, $\mathcal{P}_0$ até $\mathcal{P}_3$, quociente e sufixos\\
+Script Python/C++ e trechos & Python executável, trechos com listings e testes\\
+Dois relatórios LaTeX & Técnico com article/TikZ/amsmath/listings; explicativo com foco no cliente\\
+Slides LaTeX & Classe beamer; narrativa para aproximadamente 12 minutos\\
+Defesa de 10--15 minutos & Apresentação planejada para aproximadamente 12 minutos\\\bottomrule
+\end{tabular}\end{center}
+A referência a árvores de derivação na rubrica é pertinente à alternativa com
+gramáticas. Na aplicação escolhida, a evidência formal é a execução e a
+minimização do AFD; não se apresenta uma árvore sintática como se fosse um
+produto da análise léxica.
+
+O projeto conecta expressões regulares, um AFD completo e um scanner executável.
+A minimização reduz o reconhecedor de nove para oito estados e explicita a
+diferença entre aceitar um lexema e atribuir-lhe uma categoria. As decisões
+sobre fronteiras, decimais e erros tornam o comportamento reproduzível e
+defensável oralmente.
+
+\begin{thebibliography}{9}
+\bibitem{sipser} SIPSER, Michael. \emph{Introduction to the Theory of Computation}.
+3. ed. Cengage Learning, 2013.
+\bibitem{aho} AHO, Alfred V.; LAM, Monica S.; SETHI, Ravi; ULLMAN, Jeffrey D.
+\emph{Compilers: Principles, Techniques, and Tools}. 2. ed. Addison-Wesley, 2006.
+\bibitem{pythonatual} PYTHON SOFTWARE FOUNDATION.
+\emph{Python 3.14 Documentation: typing, dataclasses, argparse e unittest}.
+Disponível em: \url{https://docs.python.org/3.14/}. Acesso em: 13 nov. 2026.
+\end{thebibliography}
+\end{document}

@@ -1,0 +1,21 @@
+\begin{tikzpicture}[->,auto,node distance=17mm and 20mm,scale=.92,transform shape]
+\node[state,initial] (s) {$[\q{0}]$};
+\node[state,accepting,above right=of s] (i) {$[\q{I}]$};
+\node[state,accepting,right=of s] (n) {$[\q{N}]$};
+\node[state,right=of n] (d) {$[\q{Dot}]$};
+\node[state,accepting,right=of d] (f) {$[\q{F}]$};
+\node[state,accepting,below right=of s] (t) {$\q{T}$};
+\node[state,accepting,below=of s] (w) {$[\q{W}]$};
+\node[state,right=of t] (e) {$[\q{Err}]$};
+\path (s) edge node {$L$} (i)
+ (i) edge[loop above] node {$L,D$} (i)
+ (s) edge node {$D$} (n)
+ (n) edge[loop above] node {$D$} (n)
+ (n) edge node {$.$} (d)
+ (d) edge node {$D$} (f)
+ (f) edge[loop above] node {$D$} (f)
+ (s) edge node[right] {$O,S$} (t)
+ (s) edge node[left] {$W$} (w)
+ (w) edge[loop left] node {$W$} (w)
+ (e) edge[loop right] node {$\Sigma$} (e);
+\end{tikzpicture}

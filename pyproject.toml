@@ -1,0 +1,9 @@
+[project]
+name = "minil-lfaf"
+version = "1.1.0"
+description = "Reconhecedor lexico MiniL por AFD — trabalho de LFAF"
+requires-python = ">=3.12"
+dependencies = []
+
+[tool.minil]
+revision-date = "2026-11-13"

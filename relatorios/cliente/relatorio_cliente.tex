@@ -1,0 +1,149 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[margin=2.3cm]{geometry}
+\usepackage{xcolor}
+\input{../../documentacao/latex/estilo}
+\usepackage{microtype}
+\usepackage[colorlinks=true,linkcolor=azul,urlcolor=verde]{hyperref}
+\usepackage{fancyhdr}
+\pagestyle{fancy}\fancyhf{}
+\fancyhead[L]{\small\MiniL{} | Apresentação ao cliente}
+\fancyfoot[C]{\thepage}
+\setlength{\headheight}{15pt}
+\setlength{\parindent}{0pt}\setlength{\parskip}{7pt}
+\setlength{\emergencystretch}{2em}
+\title{\color{azul}\textbf{MiniL: entendendo o texto antes de executar}\\[3mm]
+\large Relatório explicativo para o cliente}
+\author{\normalsize\grupo}
+\date{Versão 1.1.0 --- 13 de novembro de 2026}
+\begin{document}\maketitle
+\section*{A proposta em uma página}
+\textbf{O que entregamos.} Um programa que lê um arquivo de texto e identifica
+suas unidades básicas: nomes, números, palavras reservadas, sinais de operação
+e separadores. Cada unidade vem acompanhada de sua posição no arquivo. Quando
+encontra um caractere que não pertence às regras combinadas, informa onde ele está.
+
+\textbf{Para que serve.} Imagine uma equipe desenvolvendo um editor para uma
+linguagem simples. Antes de conferir se os comandos estão bem organizados,
+ela precisa reconhecer o que foi escrito. A MiniL entrega essa primeira
+separação e permite que outro programa receba os resultados em formato JSON.
+Esse cenário é ilustrativo: não alegamos uma implantação comercial ou um
+ganho de produtividade medido.
+
+\textbf{Como funciona para quem usa.} A pessoa entrega o arquivo; o programa
+lê o conteúdo, separa as unidades e apresenta a lista. Se houver um erro,
+a execução termina com uma mensagem de localização, sem apresentar uma lista
+parcial como se fosse um resultado completo.
+
+\begin{center}
+\begin{tikzpicture}[>=Stealth,node distance=9mm,
+ box/.style={draw=azul,rounded corners,fill=cinza,text width=35mm,
+ align=center,minimum height=15mm,font=\small}]
+\node[box] (a) {Arquivo de texto\\em UTF-8};
+\node[box,right=of a] (b) {MiniL\\aplica as regras};
+\node[box,right=of b] (c) {Lista com posições\\ou mensagem de erro};
+\draw[->,thick,azul] (a)--(b);
+\draw[->,thick,azul] (b)--(c);
+\end{tikzpicture}
+\end{center}
+
+\textbf{Limite da entrega.} A MiniL não executa o arquivo nem verifica se o
+programa está correto como um todo. Ela realiza a leitura inicial. A validação
+da estrutura dos comandos e do significado das operações seria uma etapa futura.
+
+\section*{Materiais entregues}
+Este relatório explica o uso. O relatório técnico apresenta a especificação
+matemática, os diagramas e a minimização. A pasta \texttt{slides} contém a
+apresentação; \texttt{codigo}, \texttt{testes} e \texttt{exemplos} permitem
+executar e conferir a solução. Todos os documentos e os slides possuem fontes LaTeX.
+
+\newpage
+\section{Um exemplo completo}
+Para a entrada
+\begin{lstlisting}[language={}]
+let total = 12.50;
+\end{lstlisting}
+o cliente recebe:
+\begin{center}
+\begin{tabular}{lll}
+\toprule Texto encontrado & Significado na MiniL & Linha:coluna\\\midrule
+\texttt{let} & Palavra reservada (KW\_LET) & 1:1\\
+\texttt{total} & Nome escolhido pelo usuário (ID) & 1:5\\
+\texttt{=} & Operador (OP) & 1:11\\
+\texttt{12.50} & Número decimal (FLOAT) & 1:13\\
+\texttt{;} & Separador (SEP) & 1:18\\\bottomrule
+\end{tabular}
+\end{center}
+Uma linha e uma coluna começam em 1. A posição permite localizar a unidade
+no arquivo original. Espaços entre palavras são lidos, mas não entram nessa lista.
+
+\section{Regras acordadas}
+\begin{itemize}
+\item Palavras reservadas: \texttt{let}, \texttt{if}, \texttt{else} e \texttt{print}.
+\item Nomes: começam com letras de A a Z, maiúsculas ou minúsculas, ou com
+sublinhado. Depois disso, podem conter dígitos. Acentos não são permitidos nos nomes.
+\item Números: inteiros como \texttt{12}, e decimais como \texttt{12.50}.
+O decimal exige dígitos antes e depois do ponto; vírgula não é aceita.
+\item Operadores: \texttt{+}, \texttt{-}, \texttt{*}, \texttt{/} e \texttt{=}.
+Separadores: \texttt{(}, \texttt{)} e \texttt{;}.
+\item Maiúsculas e minúsculas são diferentes: \texttt{if} é reservada,
+mas \texttt{If} é um nome comum.
+\end{itemize}
+O programa consome o maior trecho permitido antes de classificar. Por isso,
+\texttt{ifx} é um único nome; \texttt{12abc} é separado em número \texttt{12}
+e nome \texttt{abc}. O sinal de \texttt{-3} é um operador separado do número.
+\texttt{==} representa dois operadores \texttt{=}; igualdade composta não foi definida.
+
+\section{Como os erros são apresentados}
+\begin{lstlisting}[language={}]
+Entrada: let total = 12.;
+Erro: Caractere inesperado '.' em 1:15
+\end{lstlisting}
+O ponto está sem a parte decimal. A pessoa deve corrigir o arquivo e executar
+novamente. O programa para no primeiro erro; não tenta corrigir o conteúdo
+automaticamente. Um arquivo inexistente ou sem codificação UTF-8 também recebe
+mensagem de erro, sem uma listagem técnica de falha interna.
+
+\newpage
+\section{Uso e integração}
+É necessário Python 3.12 ou superior. Não há bibliotecas externas a instalar.
+Na pasta principal do projeto, os comandos básicos são:
+\begin{lstlisting}[language={}]
+python codigo/scanner.py exemplos/exemplo.min
+python codigo/scanner.py exemplos/exemplo.min --json
+python codigo/scanner.py exemplos/invalido.min
+\end{lstlisting}
+O primeiro mostra uma lista no terminal. O segundo apresenta os mesmos dados
+em JSON, formato que um editor ou outra aplicação pode ler. O terceiro demonstra
+um erro esperado. Uma execução bem-sucedida termina com código 0; erros terminam
+com código 1. Erros de uso da linha de comando, como uma opção desconhecida,
+terminam com código 2 e mostram a ajuda do Python.
+
+\section{Como conferir a entrega}
+\begin{center}\small
+\begin{tabular}{>{\raggedright\arraybackslash}p{.35\linewidth}>{\raggedright\arraybackslash}p{.55\linewidth}}
+\toprule Verificação do cliente & Resultado esperado\\\midrule
+Ler \texttt{let total = 12.50;} & Cinco unidades, nas posições mostradas no exemplo\\
+Ler \texttt{ifx} & Um nome comum; não separar a palavra \texttt{if}\\
+Ler \texttt{let total = 12.;} & Mensagem de erro no ponto em 1:15, sem saída parcial\\
+Usar a opção \texttt{--json} & Dados estruturados com categoria, texto, linha e coluna\\
+Executar \texttt{python} com \path{scripts/validar.py} & 18 testes aprovados no ambiente registrado\\\bottomrule
+\end{tabular}
+\end{center}
+Os testes cobrem exemplos positivos e negativos, posições, leitura de arquivos,
+saída estruturada e propriedades do reconhecedor. O resultado reproduzível fica
+em \path{evidencias/validacao.txt}; a versão do interpretador efetivamente usada
+também está registrada. A revisão foi feita em novembro de 2026; isso não altera
+as datas das técnicas teóricas que fundamentam o produto.
+
+\section{O que fica fora do escopo}
+Não há interface gráfica, execução de comandos, contas de usuário ou serviços
+remotos. Textos entre aspas, notação científica e comentários não foram definidos.
+Uma barra continua sendo um operador: duas barras não iniciam um comentário.
+Parênteses são identificados individualmente; seu balanceamento não é verificado.
+Um arquivo pode ser separado em unidades e ainda conter comandos inválidos.
+
+Uma próxima versão poderia adicionar um editor visual e uma análise da
+estrutura dos comandos. Essas funções são propostas de evolução, não recursos
+da versão entregue.
+
+\end{document}

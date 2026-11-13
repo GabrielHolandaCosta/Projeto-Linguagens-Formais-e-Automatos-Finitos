@@ -1,0 +1,243 @@
+\documentclass[aspectratio=169,11pt]{beamer}
+\input{../documentacao/latex/estilo}
+\usetheme{default}
+\useinnertheme{rectangles}
+\setbeamercolor{frametitle}{bg=azul,fg=white}
+\setbeamercolor{block title}{bg=azul,fg=white}
+\setbeamercolor{block body}{bg=cinza,fg=black}
+\setbeamercolor{structure}{fg=azul}
+\setbeamercolor{palette primary}{bg=azul,fg=white}
+\setbeamercolor{palette secondary}{bg=verde,fg=white}
+\setbeamercolor{palette tertiary}{bg=azul,fg=white}
+\setbeamertemplate{navigation symbols}{}
+\setbeamertemplate{footline}[frame number]
+\title[MiniL]{O Compilador Mínimo}
+\subtitle{Modelando um reconhecedor léxico para a MiniL}
+\author[Equipe]{\small\grupo}
+\institute{Linguagens Formais e Autômatos Finitos}
+\date{Revisão 1.1.0 --- 13/11/2026}
+\begin{document}
+\begin{frame}\titlepage\end{frame}
+
+\begin{frame}{1. O que vamos reconhecer?}
+\begin{block}{Entrada}
+\texttt{let total = 12.50;}
+\end{block}
+\begin{center}
+\begin{tabular}{ccccc}
+\toprule \texttt{let}&\texttt{total}&\texttt{=}&\texttt{12.50}&\texttt{;}\\
+KW\_LET & ID & OP & FLOAT & SEP\\\bottomrule
+\end{tabular}
+\end{center}
+\begin{itemize}
+\item Lexema: texto encontrado. Token: categoria e lexema, com posição.
+\item O scanner é a etapa léxica de um compilador.
+\item Não verificamos sintaxe, tipos ou execução do programa.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{2. Um contrato pequeno e explícito}
+\begin{columns}[T]
+\column{.53\textwidth}
+\begin{block}{Reconhecemos}
+\begin{itemize}
+\item Reservadas: \texttt{let, if, else, print}.
+\item ID: letra ASCII ou \texttt{\_}; depois, também dígitos.
+\item Inteiros e decimais com ponto.
+\item Operadores: \texttt{+ - * / =}.
+\item Separadores: \texttt{( ) ;}.
+\end{itemize}
+\end{block}
+\column{.43\textwidth}
+\begin{exampleblock}{Decisões importantes}
+\texttt{12.5}: FLOAT.\\[2mm]
+\texttt{12.}: erro no ponto.\\[2mm]
+\texttt{-3}: OP e INT.\\[2mm]
+\texttt{ifx}: um ID.\\[2mm]
+Espaços são descartados.
+\end{exampleblock}
+\end{columns}
+\end{frame}
+
+\begin{frame}{3. Expressões regulares: a forma dos lexemas}
+\begin{align*}
+L&=[\texttt{A-Z a-z \_}],\qquad D=[\texttt{0-9}]\\
+\mathrm{ID}&=L(L\mid D)^*\\
+\mathrm{INT}&=D^+\\
+\mathrm{FLOAT}&=D^+\,\texttt{.}\,D^+
+\end{align*}
+\begin{itemize}
+\item OP e SEP: um caractere das respectivas classes $O$ e $S$.
+\item WS: $W^+$, com espaço, tabulação, retorno de carro e quebra de linha.
+\item Reservadas: consulta à tabela após consumir o ID completo.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{4. A definição formal}
+\[
+M=(Q,\Sigma,\delta,\q{0},F)
+\]
+\begin{align*}
+Q&=\{\q{0},\q{I},\q{N},\q{Dot},\q{F},\q{Op},\q{Sep},\q{W},\q{Err}\},\\
+F&=\{\q{I},\q{N},\q{F},\q{Op},\q{Sep},\q{W}\},\\
+\delta&:Q\times\Sigma\to Q.
+\end{align*}
+\begin{itemize}
+\item $\Sigma$: conjunto finito de valores de caracteres; classes
+$L,D,\{.\},O,S,W,X$, sendo $X$ o restante.
+\item $\q{0}$: inicial. $\q{Err}$: erro absorvente.
+\item Uma palavra $w$ é aceita quando $\delta^*(\q{0},w)\in F$.
+\end{itemize}
+\end{frame}
+
+\begin{frame}{5. O AFD original: nove estados}
+\begin{center}\resizebox{!}{.64\textheight}{\input{../documentacao/latex/diagrama_original}}\end{center}
+\small Arestas omitidas vão para $\q{Err}$. Círculos duplos são finais.
+O laço em $\q{Err}$ abrange $\Sigma$. A tabela completa está no relatório.
+\end{frame}
+
+\begin{frame}{6. Por que o ponto precisa de um estado?}
+\begin{block}{Rastreamento de \texttt{12.50}}
+\[
+\q{0}\xrightarrow{1}\q{N}\xrightarrow{2}\q{N}
+\xrightarrow{.}\q{Dot}\xrightarrow{5}\q{F}\xrightarrow{0}\q{F}
+\]
+\end{block}
+\begin{itemize}
+\item $\q{N}$ já aceita inteiro.
+\item $\q{Dot}$ ainda não aceita: falta um dígito após o ponto.
+\item $\q{F}$ aceita decimal e repete dígitos.
+\end{itemize}
+\begin{alertblock}{Caso negativo}
+\texttt{12.} termina em $\q{Dot}\notin F$: não é um lexema válido.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{7. Minimização: primeiras separações}
+\small
+Todos os estados são alcançáveis: $\varepsilon$, \texttt{a}, \texttt{0},
+\texttt{0.}, \texttt{0.0}, \texttt{+}, \texttt{;}, espaço e \texttt{@}.
+\begin{align*}
+\mathcal{P}_0=\{&\{\q{I},\q{N},\q{F},\q{Op},\q{Sep},\q{W}\},
+\{\q{0},\q{Dot},\q{Err}\}\}.\\[2mm]
+\mathcal{P}_1=\{&\{\q{I}\},\{\q{N},\q{F}\},\{\q{Op},\q{Sep}\},
+\{\q{W}\},\{\q{0}\},\{\q{Dot}\},\{\q{Err}\}\}.
+\end{align*}
+\begin{block}{Regra de refinamento de Moore}
+Dentro de cada bloco, comparamos os blocos de destino para cada classe.
+Destinos em blocos diferentes obrigam a separação.
+\end{block}
+$\q{N}$ e $\q{F}$ ainda ficam juntos na primeira rodada.
+\end{frame}
+
+\begin{frame}{8. Minimização: estabilidade e resultado}
+\[
+\delta(\q{N},\texttt{.})=\q{Dot},\qquad
+\delta(\q{F},\texttt{.})=\q{Err}.
+\]
+Agora esses destinos pertencem a blocos diferentes. Portanto:
+\begin{align*}
+\mathcal{P}_2=\{&\{\q{0}\},\{\q{I}\},\{\q{N}\},\{\q{Dot}\},\\
+&\{\q{F}\},\{\q{Op},\q{Sep}\},\{\q{W}\},\{\q{Err}\}\}.
+\end{align*}
+\begin{block}{Resultado}
+$\mathcal{P}_3=\mathcal{P}_2$: oito estados. Só OP e SEP se fundem.
+Todos os blocos são alcançáveis e distinguíveis por sufixos.
+\end{block}
+Exemplo: o sufixo \texttt{.0} distingue $\q{N}$ de $\q{F}$.
+\end{frame}
+
+\begin{frame}{9. O reconhecedor mínimo e as categorias}
+\begin{columns}
+\column{.66\textwidth}
+\resizebox{.97\linewidth}{!}{\input{../documentacao/latex/diagrama_minimo}}
+\column{.32\textwidth}
+\small
+\begin{block}{$\q{T}=\{\q{Op},\q{Sep}\}$}
+Os dois estados aceitam e depois sempre vão para erro.
+\end{block}
+\textbf{Aceitar não é classificar.}\\[2mm]
+Após a fusão, OP/SEP é recuperado pelo lexema.\\[2mm]
+O scanner fornecido usa o AFD original; o mínimo é calculado e verificado.
+\end{columns}
+\vspace{1mm}\scriptsize Transições omitidas levam ao estado de erro.
+\end{frame}
+
+\begin{frame}{10. Como separar um arquivo em tokens?}
+\begin{enumerate}
+\item Reiniciar em $\q{0}$ na posição atual.
+\item Avançar e guardar a última posição em estado final.
+\item Ao parar, retornar à última aceitação e classificar o lexema.
+\item Descartar espaços; emitir os demais tokens e repetir.
+\end{enumerate}
+\begin{exampleblock}{Maior prefixo aceito}
+\texttt{ifx} vira um ID inteiro.\\
+\texttt{12.} reconhece \texttt{12}, retorna ao ponto e informa erro.\\
+\texttt{a+b} vira três tokens, embora não seja um único lexema.
+\end{exampleblock}
+Neste AFD, o retrocesso é limitado; o scanner custa $O(n)$.
+\end{frame}
+
+\begin{frame}[fragile]{11. Implementação: a última aceitação}
+\begin{lstlisting}
+q, j, last = 'q0', i, None
+while j < len(source):
+    q = DELTA[q][char_class(source[j])]
+    if q == DEAD:
+        break
+    j += 1
+    if q in FINAL:
+        last = (j, q)
+if last is None:
+    raise LexicalError(...)
+end, accepted = last
+lexeme = source[i:end]
+\end{lstlisting}
+\small Trecho resumido de \texttt{tokenize()}; a exceção completa está no arquivo.
+\texttt{DELTA} é a própria tabela formal. Nenhuma regex é executada pelo scanner.
+\end{frame}
+
+\begin{frame}[fragile]{12. Demonstração ao vivo e evidências}
+\begin{lstlisting}[language={}]
+python codigo/scanner.py exemplos/exemplo.min --minimizar
+python -m unittest discover -s testes -v
+python codigo/scanner.py exemplos/invalido.min
+\end{lstlisting}
+\begin{itemize}
+\item Observar tokens, categorias e linha:coluna.
+\item Conferir nove estados no original e oito no quociente.
+\item 18 testes: fronteiras, erros, posições e propriedades formais.
+\item Equivalência: explorar o produto alcançável dos dois AFDs.
+\end{itemize}
+\begin{alertblock}{Erro esperado na demonstração negativa}
+\texttt{let total = 12.;}\quad acusa o ponto em \texttt{1:15}.
+\end{alertblock}
+\end{frame}
+
+\begin{frame}{13. O que demonstramos}
+\begin{itemize}
+\item Expressões regulares definem os lexemas da MiniL.
+\item Um AFD completo reconhece exatamente essas formas.
+\item Moore reduz nove estados a oito, com prova de minimalidade.
+\item O scanner aplica maior prefixo e preserva a posição dos tokens.
+\item Versão 1.1.0: código tipado, JSON e 18 testes; revisão de 13/11/2026.
+\end{itemize}
+\begin{block}{Limite do projeto}
+Reconhecimento léxico é uma etapa. Verificar estrutura e significado exigiria
+análises sintática e semântica adicionais.
+\end{block}
+\end{frame}
+
+\begin{frame}{Referências}
+\small
+SIPSER, Michael. \emph{Introduction to the Theory of Computation}.
+3. ed. Cengage Learning, 2013.\\[5mm]
+AHO, Alfred V.; LAM, Monica S.; SETHI, Ravi; ULLMAN, Jeffrey D.
+\emph{Compilers: Principles, Techniques, and Tools}.
+2. ed. Addison-Wesley, 2006.\\[3mm]
+Python Software Foundation. \emph{Python 3.14 Documentation}.\\
+\url{https://docs.python.org/3.14/}. Acesso em: 13/11/2026.\\[4mm]
+\textbf{Materiais da entrega:} relatório article, apresentação beamer,
+relatório para o cliente, diagramas TikZ, scanner Python e testes.
+\end{frame}
+\end{document}

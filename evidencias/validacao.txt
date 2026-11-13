@@ -1,0 +1,35 @@
+Revisao: 2026-11-13
+Python efetivamente testado: 3.12.14 (main, Aug 25 2026, 14:01:42) [MSC v.1944 64 bit (AMD64)]
+
+test_crlf_file_matches_api (test_scanner.CommandLineTests.test_crlf_file_matches_api) ... ok
+test_default_input_from_another_directory (test_scanner.CommandLineTests.test_default_input_from_another_directory) ... ok
+test_invalid_utf8 (test_scanner.CommandLineTests.test_invalid_utf8) ... ok
+test_json_tokens_and_minimization (test_scanner.CommandLineTests.test_json_tokens_and_minimization) ... ok
+test_lexical_error_has_position_and_no_partial_output (test_scanner.CommandLineTests.test_lexical_error_has_position_and_no_partial_output) ... ok
+test_missing_file (test_scanner.CommandLineTests.test_missing_file) ... ok
+test_standard_input (test_scanner.CommandLineTests.test_standard_input) ... ok
+test_version_identifies_revision (test_scanner.CommandLineTests.test_version_identifies_revision) ... ok
+test_all_keywords (test_scanner.ScannerTests.test_all_keywords) ... ok
+test_character_class_requires_one_character (test_scanner.ScannerTests.test_character_class_requires_one_character) ... ok
+test_classes_and_maximal_munch (test_scanner.ScannerTests.test_classes_and_maximal_munch) ... ok
+test_errors_and_rollback (test_scanner.ScannerTests.test_errors_and_rollback) ... ok
+test_explicit_lexical_policy (test_scanner.ScannerTests.test_explicit_lexical_policy) ... ok
+test_minimization_and_exact_equivalence (test_scanner.ScannerTests.test_minimization_and_exact_equivalence) ... ok
+test_positions (test_scanner.ScannerTests.test_positions) ... ok
+test_recognizer_against_independent_regex (test_scanner.ScannerTests.test_recognizer_against_independent_regex) ... ok
+test_single_lexemes (test_scanner.ScannerTests.test_single_lexemes) ... ok
+test_total_transition_function_and_reachability (test_scanner.ScannerTests.test_total_transition_function_and_reachability) ... ok
+
+----------------------------------------------------------------------
+Ran 18 tests in 4.201s
+
+OK
+
+
+relatorios/tecnico/relatorio_tecnico.pdf: 11 paginas; sem erros, caracteres ausentes ou caixas excedidas no log LaTeX.
+
+relatorios/cliente/relatorio_cliente.pdf: 3 paginas; sem erros, caracteres ausentes ou caixas excedidas no log LaTeX.
+
+slides/apresentacao.pdf: 15 paginas; sem erros, caracteres ausentes ou caixas excedidas no log LaTeX.
+
+Pacote publico conferido: relatorios, slides, fontes, codigo, testes, exemplos e evidencias; material privado de ensaio excluido.
