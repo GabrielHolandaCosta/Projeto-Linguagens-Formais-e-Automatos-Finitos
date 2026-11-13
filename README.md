@@ -110,7 +110,7 @@ O script compila cada documento no próprio diretório e usa os arquivos compart
 
 Esta versão acrescenta tipos explícitos e aliases da sintaxe Python 3.12, JSON, entrada padrão, erro de codificação tratado, preservação de CR/LF e execução independente do diretório corrente. A versão do interpretador realmente testada e os resultados estão em `evidencias/validacao.txt`.
 
-AFDs, expressões regulares e o algoritmo de Moore são fundamentos clássicos e não possuem uma “versão 2026”. O código foi revisado em 2026; não se alteram as datas dos livros nem se alega que recursos de Python sejam novos apenas por aparecerem neste trabalho. A documentação oficial do Python 3.14 foi consultada em 13/11/2026: [Python 3.14 Documentation](https://docs.python.org/3.14/).
+A documentação oficial do Python 3.14 foi consultada em 13/11/2026: [Python 3.14 Documentation](https://docs.python.org/3.14/).
 
 ## Integrantes
 
